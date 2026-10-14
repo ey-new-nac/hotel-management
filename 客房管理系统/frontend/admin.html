@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理员工作台 - 客房管理系统</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Microsoft YaHei', sans-serif; background: #f0f4f8; min-height: 100vh; }
+.header { background: linear-gradient(135deg, #0f3460, #1a5276); color: #fff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+.header h2 { font-size: 20px; }
+.btn-sm { padding: 7px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; color: #fff; }
+.btn-logout { background: rgba(255,255,255,0.2); }
+.btn-primary { background: #0f3460; }
+.btn-success { background: #059669; }
+.btn-danger { background: #dc2626; }
+.btn-warning { background: #d97706; }
+.btn-sm:hover { opacity: 0.85; }
+
+.main { max-width: 1300px; margin: 0 auto; padding: 25px; }
+.tabs-panel { display: flex; gap: 0; margin-bottom: 25px; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.tab-item { padding: 12px 20px; cursor: pointer; font-size: 14px; color: #6b7280; border-bottom: 3px solid transparent; transition: all 0.2s; white-space: nowrap; }
+.tab-item.active { color: #0f3460; border-bottom-color: #0f3460; font-weight: 500; }
+.tab-item:hover { background: #f9fafb; }
+
+.card { background: #fff; border-radius: 10px; padding: 25px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.card h3 { color: #1f2937; margin-bottom: 15px; font-size: 17px; padding-bottom: 12px; border-bottom: 2px solid #f0f4f8; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: #f9fafb; padding: 10px 8px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; }
+td { padding: 8px; border-bottom: 1px solid #f0f4f8; color: #4b5563; }
+tr:hover td { background: #f9fafb; }
+
+.form-row { display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.form-group { flex: 1; min-width: 160px; }
+.form-group label { display: block; margin-bottom: 4px; font-size: 13px; color: #374151; font-weight: 500; }
+.form-group input, .form-group select { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; outline: none; }
+.form-group input:focus { border-color: #0f3460; }
+
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+.modal { background: #fff; border-radius: 12px; padding: 30px; width: 450px; }
+.modal h3 { margin-bottom: 20px; color: #1f2937; }
+
+.msg { padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 13px; text-align: center; }
+.msg-ok { background: #d1fae5; color: #065f46; }
+.msg-err { background: #fee2e2; color: #991b1b; }
+.hidden { display: none; }
+
+.badge { padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+.badge-admin { background: #fce7f3; color: #9d174d; }
+.badge-manager { background: #e0e7ff; color: #3730a3; }
+.badge-front { background: #d1fae5; color: #065f46; }
+.badge-active { background: #d1fae5; color: #065f46; }
+.badge-disabled { background: #fee2e2; color: #991b1b; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h2>管理员工作台</h2>
+    <div class="user-info">
+        <span id="userGreeting">管理员</span>
+        <button class="btn-sm btn-logout" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="main">
+    <div id="msgArea"></div>
+
+    <div class="tabs-panel" id="tabs">
+        <div class="tab-item active" onclick="switchTab(this, 'tab-users')">用户管理</div>
+        <div class="tab-item" onclick="switchTab(this, 'tab-customers')">客户管理</div>
+        <div class="tab-item" onclick="switchTab(this, 'tab-staff')">员工管理</div>
+        <div class="tab-item" onclick="switchTab(this, 'tab-roomtypes')">房型管理</div>
+        <div class="tab-item" onclick="switchTab(this, 'tab-rooms')">客房总览</div>
+        <div class="tab-item" onclick="switchTab(this, 'tab-revenue')">营收总览</div>
+    </div>
+
+    <!-- 用户管理 -->
+    <div id="tab-users" class="tab-content">
+        <div class="card">
+            <h3>系统用户列表 <button class="btn-sm btn-success" onclick="showAddUser()" style="float:right;">+ 新建用户</button></h3>
+            <table><thead><tr><th>编号</th><th>用户名</th><th>角色</th><th>关联员工</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody id="usersTbody"></tbody></table>
+        </div>
+    </div>
+
+    <!-- 客户管理 -->
+    <div id="tab-customers" class="tab-content hidden">
+        <div class="card">
+            <h3>客户列表</h3>
+            <div class="form-row">
+                <div class="form-group" style="min-width:300px;">
+                    <input type="text" id="customerSearch" placeholder="搜索：姓名 / 电话 / 身份证" oninput="loadCustomers()">
+                </div>
+            </div>
+            <table><thead><tr><th>编号</th><th>姓名</th><th>性别</th><th>电话</th><th>会员等级</th><th>积分</th><th>操作</th></tr></thead>
+            <tbody id="customersTbody"></tbody></table>
+        </div>
+    </div>
+
+    <!-- 员工管理 -->
+    <div id="tab-staff" class="tab-content hidden">
+        <div class="card">
+            <h3>员工列表 <button class="btn-sm btn-success" onclick="showAddStaff()" style="float:right;">+ 新员工入职</button></h3>
+            <table><thead><tr><th>编号</th><th>姓名</th><th>性别</th><th>电话</th><th>岗位</th><th>入职时间</th><th>关联账号</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody id="staffTbody"></tbody></table>
+        </div>
+    </div>
+
+    <!-- 房型管理 -->
+    <div id="tab-roomtypes" class="tab-content hidden">
+        <div class="card">
+            <h3>房型管理</h3>
+            <table><thead><tr><th>编号</th><th>名称</th><th>默认价格</th><th>总间数</th><th>剩余</th><th>说明</th></tr></thead>
+            <tbody id="typesTbody"></tbody></table>
+        </div>
+    </div>
+
+    <!-- 客房总览 -->
+    <div id="tab-rooms" class="tab-content hidden">
+        <div class="card">
+            <h3>全部客房状态</h3>
+            <table><thead><tr><th>房间号</th><th>房型</th><th>价格</th><th>状态</th></tr></thead>
+            <tbody id="adminRoomsTbody"></tbody></table>
+        </div>
+    </div>
+
+    <!-- 营收总览 -->
+    <div id="tab-revenue" class="tab-content hidden">
+        <div class="card">
+            <h3>30天营收统计</h3>
+            <table><thead><tr><th>日期</th><th>退房数</th><th>营收（元）</th></tr></thead>
+            <tbody id="adminRevenueTbody"></tbody></table>
+            <div style="margin-top:10px;font-weight:bold;">总营收：<span id="adminRevenueTotal">¥0</span></div>
+        </div>
+    </div>
+</div>
+
+<!-- 新员工入职弹窗 -->
+<div class="modal-overlay" id="addStaffModal">
+    <div class="modal">
+        <h3>新员工入职</h3>
+        <div class="form-group"><label>姓名 *</label><input type="text" id="asName"></div>
+        <div class="form-group">
+            <label>性别</label>
+            <select id="asGender"><option>男</option><option>女</option><option>其他</option></select>
+        </div>
+        <div class="form-group"><label>电话</label><input type="text" id="asPhone"></div>
+        <div class="form-group">
+            <label>岗位 *</label>
+            <select id="asPost" onchange="onPostChange()">
+                <option value="前台">前台</option><option value="经理">经理</option>
+                <option value="保洁">保洁</option><option value="维修">维修</option>
+            </select>
+        </div>
+        <div class="form-group"><label>入职时间</label><input type="date" id="asEntryTime"></div>
+        <div id="asAccountFields" class="hidden">
+            <div style="background:#f0f7ff;padding:12px;border-radius:8px;margin-bottom:8px;font-size:13px;color:#1a5276;">该岗位需要系统账号，请设置登录信息</div>
+            <div class="form-group"><label>用户名 *</label><input type="text" id="asUsername"></div>
+            <div class="form-group"><label>密码 *</label><input type="password" id="asPassword"></div>
+            <div class="form-group">
+                <label>角色</label>
+                <select id="asRole">
+                    <option value="front" selected>前台</option><option value="manager">经理</option><option value="admin">管理员</option>
+                </select>
+            </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:15px;">
+            <button class="btn-sm btn-success" onclick="addStaff()">确认入职</button>
+            <button class="btn-sm" style="background:#6b7280;" onclick="document.getElementById('addStaffModal').style.display='none'">取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- 新建用户弹窗 -->
+<div class="modal-overlay" id="addUserModal">
+    <div class="modal">
+        <h3>新建系统用户</h3>
+        <div class="form-group"><label>用户名</label><input type="text" id="auUsername"></div>
+        <div class="form-group"><label>密码</label><input type="password" id="auPassword"></div>
+        <div class="form-group">
+            <label>角色</label>
+            <select id="auRole">
+                <option value="admin">管理员</option><option value="manager">经理</option><option value="front" selected>前台</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>关联员工(可选)</label>
+            <select id="auStaffId">
+                <option value="">不关联</option>
+            </select>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:15px;">
+            <button class="btn-sm btn-success" onclick="addUser()">创建</button>
+            <button class="btn-sm" style="background:#6b7280;" onclick="document.getElementById('addUserModal').style.display='none'">取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑客户弹窗 -->
+<div class="modal-overlay" id="editCustomerModal">
+    <div class="modal">
+        <h3>编辑客户信息</h3>
+        <input type="hidden" id="ecCustomerId">
+        <div class="form-group"><label>姓名</label><input type="text" id="ecName"></div>
+        <div class="form-group">
+            <label>性别</label>
+            <select id="ecGender"><option>男</option><option>女</option><option>其他</option></select>
+        </div>
+        <div class="form-group"><label>电话</label><input type="text" id="ecPhone"></div>
+        <div class="form-group">
+            <label>会员等级</label>
+            <select id="ecMemberLevel">
+                <option value="普通">普通</option><option value="会员">会员</option>
+            </select>
+        </div>
+        <div class="form-group"><label>积分</label><input type="number" id="ecPoints" min="0"></div>
+        <div style="background:#fef3c7;padding:8px;border-radius:6px;font-size:12px;color:#92400e;margin-top:8px;">
+            提示：将积分设为 3000 以上，保存后自动升级为会员
+        </div>
+        <div style="display:flex;gap:10px;margin-top:15px;">
+            <button class="btn-sm btn-success" onclick="saveCustomer()">保存</button>
+            <button class="btn-sm" style="background:#6b7280;" onclick="document.getElementById('editCustomerModal').style.display='none'">取消</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = 'http://localhost:5000';
+
+function showMsg(text, type) {
+    const el = document.getElementById('msgArea');
+    el.innerHTML = `<div class="msg msg-${type==='ok'?'ok':'err'}">${text}</div>`;
+    setTimeout(() => el.innerHTML = '', 3000);
+}
+
+function fmtTime(str) {
+    if (!str) return '-';
+    const m = str.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+    if (m) return `${m[1]}年${parseInt(m[2])}月${parseInt(m[3])}日 ${m[4]}:${m[5]}`;
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    return str;
+}
+
+async function checkLogin() {
+    try {
+        const res = await fetch(`${API}/api/session`, { credentials: 'include' });
+        const data = await res.json();
+        if (data.code !== 200 || data.data.role !== 'admin') { location.href = 'index.html'; return; }
+        document.getElementById('userGreeting').textContent = `管理员：${data.data.username}`;
+    } catch(e) { location.href = 'index.html'; }
+}
+
+function switchTab(elm, tabId) {
+    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+    elm.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+    const tab = document.getElementById(tabId);
+    if (tab) tab.classList.remove('hidden');
+    if (tabId === 'tab-users') loadUsers();
+    if (tabId === 'tab-customers') loadCustomers();
+    if (tabId === 'tab-staff') loadStaff();
+    if (tabId === 'tab-roomtypes') loadRoomTypes();
+    if (tabId === 'tab-rooms') loadAdminRooms();
+    if (tabId === 'tab-revenue') loadAdminRevenue();
+}
+
+async function init() {
+    await checkLogin();
+    loadUsers();
+}
+
+async function loadUsers() {
+    const res = await fetch(`${API}/api/system-users`, { credentials: 'include' });
+    const data = await res.json();
+    let html = '';
+    (data.data||[]).forEach(u => {
+        const roleBadge = {admin:'badge-admin',manager:'badge-manager',front:'badge-front'};
+        const statusBadge = u.status === 1 ? 'badge-active' : 'badge-disabled';
+        html += `<tr>
+            <td>#${u.user_id}</td><td>${u.username}</td>
+            <td><span class="badge ${roleBadge[u.role]||''}">${u.role==='admin'?'管理员':u.role==='manager'?'经理':'前台'}</span></td>
+            <td>${u.staff_name||'未关联'}</td>
+            <td><span class="badge ${statusBadge}">${u.status===1?'启用':'禁用'}</span></td>
+            <td>
+                <button class="btn-sm btn-warning" onclick="toggleUser(${u.user_id}, ${u.status})">${u.status===1?'禁用':'启用'}</button>
+            </td>
+        </tr>`;
+    });
+    document.getElementById('usersTbody').innerHTML = html;
+}
+
+async function showAddUser() {
+    const res = await fetch(`${API}/api/staff`, { credentials: 'include' });
+    const data = await res.json();
+    let opts = '<option value="">不关联</option>';
+    (data.data||[]).forEach(s => {
+        if (!s.user_id && ['前台','经理','管理员'].includes(s.post)) opts += `<option value="${s.staff_id}">${s.name} (${s.post})</option>`;
+    });
+    document.getElementById('auStaffId').innerHTML = opts;
+    document.getElementById('addUserModal').style.display = 'flex';
+}
+
+function showAddStaff() {
+    document.getElementById('asEntryTime').value = new Date().toISOString().split('T')[0];
+    document.getElementById('asUsername').value = '';
+    document.getElementById('asPassword').value = '';
+    document.getElementById('asAccountFields').classList.add('hidden');
+    document.getElementById('addStaffModal').style.display = 'flex';
+}
+
+function onPostChange() {
+    const post = document.getElementById('asPost').value;
+    const fields = document.getElementById('asAccountFields');
+    if (post === '前台' || post === '经理') {
+        fields.classList.remove('hidden');
+        document.getElementById('asRole').value = post === '前台' ? 'front' : 'manager';
+    } else {
+        fields.classList.add('hidden');
+    }
+}
+
+async function addStaff() {
+    const name = document.getElementById('asName').value.trim();
+    const post = document.getElementById('asPost').value;
+    if (!name || !post) { showMsg('姓名和岗位不能为空', 'err'); return; }
+    const body = {
+        name,
+        gender: document.getElementById('asGender').value,
+        phone: document.getElementById('asPhone').value.trim(),
+        post,
+        entry_time: document.getElementById('asEntryTime').value
+    };
+    if ((post === '前台' || post === '经理') && !document.getElementById('asAccountFields').classList.contains('hidden')) {
+        const uname = document.getElementById('asUsername').value.trim();
+        const pwd = document.getElementById('asPassword').value;
+        if (!uname || !pwd) { showMsg('请填写用户名和密码', 'err'); return; }
+        body.username = uname;
+        body.password = pwd;
+        body.role = document.getElementById('asRole').value;
+    }
+    const res = await fetch(`${API}/api/staff`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    showMsg(data.msg, data.code===200?'ok':'err');
+    if (data.code === 200) {
+        document.getElementById('addStaffModal').style.display = 'none';
+        loadStaff();
+    }
+}
+
+async function addUser() {
+    const staffId = document.getElementById('auStaffId').value;
+    const res = await fetch(`${API}/api/system-users`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({
+            username: document.getElementById('auUsername').value,
+            password: document.getElementById('auPassword').value,
+            role: document.getElementById('auRole').value,
+            staff_id: staffId ? parseInt(staffId) : null
+        })
+    });
+    const data = await res.json();
+    showMsg(data.msg, data.code===200?'ok':'err');
+    if (data.code === 200) {
+        document.getElementById('addUserModal').style.display = 'none';
+        loadUsers();
+    }
+}
+
+async function toggleUser(uid, currentStatus) {
+    const newStatus = currentStatus === 1 ? 0 : 1;
+    const res = await fetch(`${API}/api/system-users/${uid}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ status: newStatus })
+    });
+    const data = await res.json();
+    showMsg(data.msg, data.code===200?'ok':'err');
+    loadUsers();
+}
+
+async function toggleStaff(sid, currentStatus) {
+    const newStatus = currentStatus === '离职' ? '在职' : '离职';
+    if (newStatus === '离职' && !confirm('确定将该员工标记为离职吗？其关联账号将被自动禁用。')) return;
+    const res = await fetch(`${API}/api/staff/${sid}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ status: newStatus })
+    });
+    const data = await res.json();
+    showMsg(data.msg, data.code===200?'ok':'err');
+    if (data.code === 200) { loadStaff(); loadUsers(); }
+}
+
+async function loadStaff() {
+    const res = await fetch(`${API}/api/staff`, { credentials: 'include' });
+    const data = await res.json();
+    let html = '';
+    (data.data||[]).forEach(s => {
+        const isActive = s.status !== '离职';
+        html += `<tr><td>#${s.staff_id}</td><td>${s.name}</td><td>${s.gender||'-'}</td><td>${s.phone||'-'}</td><td>${s.post}</td><td>${fmtTime(s.entry_time)}</td><td>${s.username||'无'}</td><td>${s.status}</td>
+            <td><button class="btn-sm ${isActive?'btn-danger':'btn-success'}" onclick="toggleStaff(${s.staff_id},'${s.status}')">${isActive?'离职':'复职'}</button></td>
+        </tr>`;
+    });
+    document.getElementById('staffTbody').innerHTML = html || '<tr><td colspan="9">暂无员工数据</td></tr>';
+}
+
+async function loadRoomTypes() {
+    const res = await fetch(`${API}/api/room-types`, { credentials: 'include' });
+    const data = await res.json();
+    let html = '';
+    (data.data||[]).forEach(rt => {
+        html += `<tr><td>#${rt.type_id}</td><td>${rt.type_name}</td><td>¥${rt.default_price}</td><td>${rt.total_room}</td><td>${rt.surplus_room}</td><td>${rt.description||'-'}</td></tr>`;
+    });
+    document.getElementById('typesTbody').innerHTML = html;
+}
+
+async function loadAdminRooms() {
+    const res = await fetch(`${API}/api/rooms`, { credentials: 'include' });
+    const data = await res.json();
+    let html = '';
+    (data.data||[]).forEach(r => {
+        html += `<tr><td>${r.room_id}</td><td>${r.type_name}</td><td>¥${r.price}</td><td>${r.status}</td></tr>`;
+    });
+    document.getElementById('adminRoomsTbody').innerHTML = html;
+}
+
+async function loadAdminRevenue() {
+    const res = await fetch(`${API}/api/stats/revenue?days=30`, { credentials: 'include' });
+    const data = await res.json();
+    let html = '', total = 0;
+    (data.data||[]).forEach(d => {
+        html += `<tr><td>${d.day}</td><td>${d.orders}</td><td>¥${d.revenue}</td></tr>`;
+        total += parseFloat(d.revenue) || 0;
+    });
+    document.getElementById('adminRevenueTbody').innerHTML = html || '<tr><td colspan="3">暂无</td></tr>';
+    document.getElementById('adminRevenueTotal').textContent = '¥' + total.toFixed(2);
+}
+
+async function loadCustomers() {
+    const kw = document.getElementById('customerSearch')?.value || '';
+    const url = kw ? `${API}/api/customers?keyword=${encodeURIComponent(kw)}` : `${API}/api/customers`;
+    const res = await fetch(url, { credentials: 'include' });
+    const data = await res.json();
+    let html = '';
+    (data.data||[]).forEach(c => {
+        const levelBadge = c.member_level === '会员'
+            ? '<span class="badge badge-manager">会员</span>'
+            : '<span class="badge" style="background:#e5e7eb;color:#6b7280;">普通</span>';
+        html += `<tr>
+            <td>#${c.customer_id}</td><td>${c.name}</td><td>${c.gender}</td><td>${c.phone}</td>
+            <td>${levelBadge}</td><td>${c.points}</td>
+            <td><button class="btn-sm btn-primary" onclick="showEditCustomer(${c.customer_id})">编辑</button></td>
+        </tr>`;
+    });
+    document.getElementById('customersTbody').innerHTML = html || '<tr><td colspan="7">暂无客户数据</td></tr>';
+}
+
+async function showEditCustomer(cid) {
+    const res = await fetch(`${API}/api/customers/${cid}`, { credentials: 'include' });
+    const data = await res.json();
+    if (data.code !== 200) { showMsg(data.msg, 'err'); return; }
+    const c = data.data;
+    document.getElementById('ecCustomerId').value = c.customer_id;
+    document.getElementById('ecName').value = c.name;
+    document.getElementById('ecGender').value = c.gender;
+    document.getElementById('ecPhone').value = c.phone;
+    document.getElementById('ecMemberLevel').value = c.member_level;
+    document.getElementById('ecPoints').value = c.points;
+    document.getElementById('editCustomerModal').style.display = 'flex';
+}
+
+async function saveCustomer() {
+    const cid = document.getElementById('ecCustomerId').value;
+    const body = {
+        name: document.getElementById('ecName').value,
+        gender: document.getElementById('ecGender').value,
+        phone: document.getElementById('ecPhone').value,
+        member_level: document.getElementById('ecMemberLevel').value,
+        points: parseInt(document.getElementById('ecPoints').value) || 0
+    };
+    const res = await fetch(`${API}/api/customers/${cid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (data.code === 200) {
+        document.getElementById('editCustomerModal').style.display = 'none';
+        showMsg(data.msg, 'ok');
+        loadCustomers();
+    } else {
+        showMsg(data.msg, 'err');
+    }
+}
+
+async function logout() {
+    await fetch(`${API}/api/logout`, { method: 'POST', credentials: 'include' });
+    location.href = 'index.html';
+}
+
+init();
+</script>
+</body>
+</html>

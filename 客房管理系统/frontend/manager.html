@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>经理工作台 - 客房管理系统</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Microsoft YaHei', sans-serif; background: #f0f4f8; min-height: 100vh; }
+.header { background: linear-gradient(135deg, #1a5276, #1e6b9e); color: #fff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+.header h2 { font-size: 20px; }
+.btn-sm { padding: 7px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; color: #fff; }
+.btn-logout { background: rgba(255,255,255,0.2); }
+.btn-primary { background: #1a5276; }
+.btn-success { background: #059669; }
+.btn-warning { background: #d97706; }
+.btn-sm:hover { opacity: 0.85; }
+
+.main { max-width: 1300px; margin: 0 auto; padding: 25px; }
+.tabs-panel { display: flex; gap: 0; margin-bottom: 25px; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.tab-item { padding: 12px 20px; cursor: pointer; font-size: 14px; color: #6b7280; border-bottom: 3px solid transparent; transition: all 0.2s; white-space: nowrap; }
+.tab-item.active { color: #1a5276; border-bottom-color: #1a5276; font-weight: 500; }
+.tab-item:hover { background: #f9fafb; }
+
+.card { background: #fff; border-radius: 10px; padding: 25px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.card h3 { color: #1f2937; margin-bottom: 15px; font-size: 17px; padding-bottom: 12px; border-bottom: 2px solid #f0f4f8; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: #f9fafb; padding: 10px 8px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; }
+td { padding: 8px; border-bottom: 1px solid #f0f4f8; color: #4b5563; }
+tr:hover td { background: #f9fafb; }
+
+.form-row { display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.form-group { flex: 1; min-width: 160px; }
+.form-group label { display: block; margin-bottom: 4px; font-size: 13px; color: #374151; font-weight: 500; }
+.form-group input, .form-group select { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; outline: none; }
+.form-group input:focus { border-color: #1a5276; }
+
+.msg { padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 13px; text-align: center; }
+.msg-ok { background: #d1fae5; color: #065f46; }
+.msg-err { background: #fee2e2; color: #991b1b; }
+.hidden { display: none; }
+
+.stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
+.stat-card { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
+.stat-card .num { font-size: 28px; font-weight: bold; color: #1a5276; }
+.stat-card .lbl { color: #6b7280; font-size: 13px; margin-top: 4px; }
+
+.editable { cursor: pointer; color: #1a5276; }
+.editable:hover { text-decoration: underline; }
+
+canvas { max-width: 100%; margin-top: 10px; }
+
+.batch-bar { display: none; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 12px 16px; margin-bottom: 15px; align-items: center; gap: 10px; flex-wrap: wrap; }
+.batch-bar.show { display: flex; }
+.batch-bar .cnt { font-weight: 600; color: #1e40af; white-space: nowrap; }
+.batch-bar select, .batch-bar input { padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px; }
+.chk-room { width: 16px; height: 16px; cursor: pointer; accent-color: #1a5276; }
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+.modal { background: #fff; border-radius: 12px; padding: 30px; width: 450px; }
+.modal h3 { margin-bottom: 20px; color: #1f2937; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h2>经理工作台</h2>
+    <div class="user-info">
+        <span id="userGreeting">经理</span>
+        <button class="btn-sm btn-logout" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="main">
+    <div id="msgArea"></div>
+
+    <div class="tabs-panel" id="tabs">
+        <div class="tab-item active" onclick="switchTab(this, 'tab-overview')">总览</div>
+        <div class="tab-item" onclick="switchTab(this, 'tab-rooms')">客房管理</div>
+        <div class="tab-item" onclick="switchTab(this, 'tab-revenue')">营收统计</div>
+        <div class="tab-item" onclick="switchTab(this, 'tab-guests')">在住客人</div>
+        <div class="tab-item" onclick="switchTab(this, 'tab-history')">客户历史</div>
+        <div class="tab-item" onclick="switchTab(this, 'tab-services')">增值服务</div>
+        <div class="tab-item" onclick="switchTab(this, 'tab-room-service')">客房服务</div>
+    </div>
+
+    <!-- 总览 -->
+    <div id="tab-overview" class="tab-content">
+        <div class="stats-bar">
+            <div class="stat-card"><div class="num" id="ovTotalRooms">0</div><div class="lbl">客房总数</div></div>
+            <div class="stat-card"><div class="num" id="ovOccupied">0</div><div class="lbl">当前入住</div></div>
+            <div class="stat-card"><div class="num" id="ovOccupancy">0%</div><div class="lbl">入住率</div></div>
+            <div class="stat-card"><div class="num" id="ovRevenue">¥0</div><div class="lbl">今日营收</div></div>
+        </div>
+        <div class="card">
+            <h3>各房型入住情况</h3>
+            <table><thead><tr><th>房型</th><th>总间数</th><th>空闲</th><th>已预订</th><th>已入住</th><th>清洁中</th><th>维修中</th><th>入住率</th></tr></thead>
+            <tbody id="roomSummaryTbody"></tbody></table>
+        </div>
+    </div>
+
+    <!-- 客房管理 -->
+    <div id="tab-rooms" class="tab-content hidden">
+        <div class="card">
+            <h3>客房信息管理</h3>
+            <div class="batch-bar" id="batchBar">
+                <span class="cnt" id="batchCount">已选择 0 个房间</span>
+                <select id="batchStatus" onchange="batchApplyStatus()">
+                    <option value="">-- 批量状态 --</option>
+                    <option value="空闲">空闲</option>
+                    <option value="已预订">已预订</option>
+                    <option value="已入住">已入住</option>
+                    <option value="清洁中">清洁中</option>
+                    <option value="维修中">维修中</option>
+                </select>
+                <input type="number" id="batchPrice" placeholder="价格(元)" style="width:100px;">
+                <input type="number" id="batchArea" placeholder="面积(㎡)" style="width:100px;" step="0.01">
+                <button class="btn-sm btn-primary" onclick="batchApply()">批量应用</button>
+                <button class="btn-sm" style="background:#6b7280;" onclick="clearBatchSelect()">取消选择</button>
+            </div>
+            <p style="color:#6b7280;font-size:13px;margin-bottom:12px;">勾选房间后可批量修改；点击价格/面积/备注可直接编辑</p>
+            <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                <button class="btn-sm btn-success" onclick="showAddRoomModal()">+ 新增客房</button>
+                <button class="btn-sm" style="background:#4f46e5;" onclick="printManageRooms()">打印</button>
+                <button class="btn-sm" style="background:#0891b2;" onclick="exportRooms()">导出Excel</button>
+            </div>
+            <table><thead><tr>
+                <th style="width:36px;"><input type="checkbox" class="chk-room" id="selectAll" onchange="toggleSelectAll(this.checked)"></th>
+                <th>房间号</th><th>房型</th><th>面积(㎡)</th><th>价格(元)</th><th>状态</th><th>备注</th><th style="width:50px;">操作</th>
+            </tr></thead>
+            <tbody id="manageRoomsTbody"></tbody></table>
+        </div>
+    </div>
+
+    <!-- 营收统计 -->
+    <div id="tab-revenue" class="tab-content hidden">
+        <div class="card">
+            <h3>营收统计 <select id="revenueDays" onchange="loadRevenue()" style="margin-left:10px;">
+                <option value="7">近7天</option><option value="30" selected>近30天</option><option value="90">近90天</option>
+            </select></h3>
+            <table><thead><tr><th>日期</th><th>退房数</th><th>营收(元)</th></tr></thead>
+            <tbody id="revenueTbody"></tbody></table>
+            <div style="margin-top:10px;font-weight:bold;color:#1a5276;">合计营收：<span id="revenueTotal">¥0</span></div>
+        </div>
+    </div>
+
+    <!-- 在住客人 -->
+    <div id="tab-guests" class="tab-content hidden">
+        <div class="card">
+            <h3>当前在住客人</h3>
+            <table><thead><tr><th>入住编号</th><th>客户</th><th>手机号</th><th>证件号</th><th>房间</th><th>房型</th><th>入住时间</th><th>预计离店</th><th>房价/天</th></tr></thead>
+            <tbody id="mgrGuestsTbody"></tbody></table>
+        </div>
+    </div>
+
+    <!-- 客户历史 -->
+    <div id="tab-history" class="tab-content hidden">
+        <div class="card">
+            <h3>客户列表</h3>
+            <div class="form-row">
+                <div class="form-group" style="min-width:300px;">
+                    <input type="text" id="histSearch" placeholder="搜索：姓名 / 电话 / 身份证" oninput="loadHistCustomers()">
+                </div>
+                <div class="form-group"><label>&nbsp;</label>
+                    <button class="btn-sm btn-primary" onclick="loadHistCustomers()">搜索</button>
+                </div>
+            </div>
+            <div style="max-height:300px;overflow-y:auto;">
+                <table><thead><tr><th>编号</th><th>姓名</th><th>电话</th><th>会员等级</th><th>积分</th><th>操作</th></tr></thead>
+                <tbody id="histCustTbody"></tbody></table>
+            </div>
+        </div>
+        <div class="card hidden" id="histDetailCard">
+            <h3 id="histDetailTitle">客户详情</h3>
+            <div id="histDetailContent"></div>
+        </div>
+        <div class="card">
+            <h3>住宿记录多条件查询</h3>
+            <div class="form-row">
+                <div class="form-group"><label>客房号</label><input type="text" id="rsRoomId" placeholder="模糊搜索"></div>
+                <div class="form-group"><label>房型</label><select id="rsTypeId"><option value="">全部</option></select></div>
+                <div class="form-group"><label>状态</label>
+                    <select id="rsStatus">
+                        <option value="">全部</option><option value="入住中">入住中</option><option value="已退房">已退房</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>入住时间起</label><input type="date" id="rsDateFrom"></div>
+                <div class="form-group"><label>入住时间止</label><input type="date" id="rsDateTo"></div>
+                <div class="form-group"><label>客户姓名</label><input type="text" id="rsCustName" placeholder="模糊搜索"></div>
+                <div class="form-group"><label>&nbsp;</label>
+                    <button class="btn-sm btn-primary" onclick="searchRooms()" style="width:100%;">查询</button>
+                </div>
+            </div>
+            <div style="max-height:400px;overflow-y:auto;">
+                <table><thead><tr>
+                    <th>入住编号</th><th>客户</th><th>电话</th><th>房间</th><th>房型</th><th>房价</th><th>入住时间</th><th>预计离店</th><th>实际退房</th><th>状态</th>
+                </tr></thead><tbody id="roomSearchTbody"></tbody></table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 增值服务 -->
+    <div id="tab-services" class="tab-content hidden">
+        <div class="card">
+            <h3>增值服务消费记录</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>服务类型</label>
+                    <select id="svcType" onchange="loadServices()">
+                        <option value="pool">游泳池</option><option value="gym">健身房</option><option value="dining">餐厅</option>
+                    </select>
+                </div>
+            </div>
+            <table><thead><tr><th>编号</th><th>客户</th><th>入住编号</th><th>人数</th><th>金额</th><th>时间</th></tr></thead>
+            <tbody id="servicesTbody"></tbody></table>
+        </div>
+    </div>
+
+    <!-- 客房服务（维修/清洁） -->
+    <div id="tab-room-service" class="tab-content hidden">
+        <div class="card">
+            <h3>登记维修/清洁</h3>
+            <div class="form-row">
+                <div class="form-group"><label>房间号</label><input type="text" id="rsRoomId2" placeholder="如：301"></div>
+                <div class="form-group"><label>服务类型</label>
+                    <select id="rsServiceType">
+                        <option value="维修">维修</option><option value="清洁">清洁</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>描述</label><input type="text" id="rsDesc" placeholder="如：空调不制冷"></div>
+                <div class="form-group"><label>&nbsp;</label><button class="btn-sm btn-success" onclick="addRoomService()" style="width:100%;">提交</button></div>
+            </div>
+        </div>
+        <div class="card">
+            <h3>维修/清洁记录</h3>
+            <table><thead><tr><th>编号</th><th>房间号</th><th>类型</th><th>描述</th><th>操作员</th><th>登记时间</th></tr></thead>
+            <tbody id="roomServiceTbody"></tbody></table>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = 'http://localhost:5000';
+
+function showMsg(text, type) {
+    const el = document.getElementById('msgArea');
+    el.innerHTML = `<div class="msg msg-${type==='ok'?'ok':'err'}">${text}</div>`;
+    setTimeout(() => el.innerHTML = '', 3000);
+}
+
+function fmtTime(str) {
+    if (!str) return '-';
+    const m = str.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+    if (m) return `${m[1]}年${parseInt(m[2])}月${parseInt(m[3])}日 ${m[4]}:${m[5]}`;
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    return str;
+}
+
+async function checkLogin() {
+    try {
+        const res = await fetch(`${API}/api/session`, { credentials: 'include' });
+        const data = await res.json();
+        if (data.code !== 200 || data.data.role !== 'manager') { location.href = 'index.html'; return; }
+        document.getElementById('userGreeting').textContent = `经理：${data.data.username}`;
+    } catch(e) { location.href = 'index.html'; }
+}
+
+function switchTab(elm, tabId) {
+    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+    elm.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+    const tab = document.getElementById(tabId);
+    if (tab) tab.classList.remove('hidden');
+    if (tabId === 'tab-overview') loadOverview();
+    if (tabId === 'tab-rooms') loadManageRooms();
+    if (tabId === 'tab-revenue') loadRevenue();
+    if (tabId === 'tab-guests') loadManagerGuests();
+    if (tabId === 'tab-history') { loadHistCustomers(); loadRoomTypeFilter(); }
+    if (tabId === 'tab-services') loadServices();
+    if (tabId === 'tab-room-service') loadRoomServices();
+}
+
+async function init() {
+    await checkLogin();
+    loadOverview();
+}
+
+async function loadOverview() {
+    const [roomsRes, checkinsRes, checkoutRes] = await Promise.all([
+        fetch(`${API}/api/rooms`, { credentials: 'include' }),
+        fetch(`${API}/api/checkins?status=入住中`, { credentials: 'include' }),
+        fetch(`${API}/api/stats/revenue?days=1`, { credentials: 'include' })
+    ]);
+    const rooms = (await roomsRes.json()).data || [];
+    const checkins = (await checkinsRes.json()).data || [];
+    const revenueData = (await checkoutRes.json()).data || [];
+
+    document.getElementById('ovTotalRooms').textContent = rooms.length;
+    document.getElementById('ovOccupied').textContent = checkins.length;
+    document.getElementById('ovOccupancy').textContent = rooms.length ? Math.round(checkins.length / rooms.length * 100) + '%' : '0%';
+    document.getElementById('ovRevenue').textContent = '¥' + (revenueData[0]?.revenue || 0);
+
+    // room type summary
+    const res = await fetch(`${API}/api/stats/room-summary`, { credentials: 'include' });
+    const summary = (await res.json()).data || [];
+    let html = '';
+    summary.forEach(s => {
+        const rate = s.total > 0 ? Math.round(s.occupied / s.total * 100) : 0;
+        html += `<tr><td>${s.type_name}</td><td>${s.total}</td><td>${s.vacant}</td><td>${s.booked}</td><td>${s.occupied}</td><td>${s.cleaning}</td><td>${s.maintenance}</td><td>${rate}%</td></tr>`;
+    });
+    document.getElementById('roomSummaryTbody').innerHTML = html;
+}
+
+async function loadManageRooms() {
+    const res = await fetch(`${API}/api/rooms`, { credentials: 'include' });
+    const data = await res.json();
+    let html = '';
+    (data.data||[]).forEach(r => {
+        html += `<tr>
+            <td><input type="checkbox" class="chk-room" value="${r.room_id}" onchange="onRoomCheck()"></td>
+            <td>${r.room_id}</td><td>${r.type_name}</td>
+            <td><span class="editable" contenteditable="true" data-room="${r.room_id}" data-field="area" onblur="updateRoom('${r.room_id}','area',this.textContent)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${r.area||''}</span></td>
+            <td><span class="editable" contenteditable="true" data-room="${r.room_id}" data-field="price" onblur="updateRoom('${r.room_id}','price',this.textContent)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${r.price}</span></td>
+            <td>
+                <select onchange="updateRoom('${r.room_id}','status',this.value)" style="padding:4px;border:1px solid #d1d5db;border-radius:4px;">
+                    <option value="空闲" ${r.status==='空闲'?'selected':''}>空闲</option>
+                    <option value="已预订" ${r.status==='已预订'?'selected':''}>已预订</option>
+                    <option value="已入住" ${r.status==='已入住'?'selected':''}>已入住</option>
+                    <option value="清洁中" ${r.status==='清洁中'?'selected':''}>清洁中</option>
+                    <option value="维修中" ${r.status==='维修中'?'selected':''}>维修中</option>
+                </select>
+            </td>
+            <td><span class="editable" contenteditable="true" data-room="${r.room_id}" data-field="remark" onblur="updateRoom('${r.room_id}','remark',this.textContent)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${r.remark||''}</span></td>
+            <td><button class="btn-sm btn-danger" style="padding:3px 8px;font-size:11px;" onclick="deleteRoom('${r.room_id}')">删除</button></td>
+        </tr>`;
+    });
+    document.getElementById('manageRoomsTbody').innerHTML = html;
+    document.getElementById('selectAll').checked = false;
+    updateBatchBar();
+}
+
+async function updateRoom(roomId, field, value) {
+    const body = {};
+    if (field === 'price' || field === 'area') body[field] = parseFloat(value) || null;
+    else if (field === 'remark') body[field] = value.trim();
+    else body.status = value;
+    const res = await fetch(`${API}/api/rooms/${roomId}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    showMsg(data.msg, data.code===200?'ok':'err');
+    if (data.code===200) loadManageRooms();
+}
+
+// ---- 批量操作 ----
+function getCheckedRoomIds() {
+    const cbs = document.querySelectorAll('#manageRoomsTbody .chk-room:checked');
+    return Array.from(cbs).map(cb => cb.value);
+}
+
+function onRoomCheck() {
+    const checked = getCheckedRoomIds();
+    document.getElementById('selectAll').checked = checked.length > 0 &&
+        checked.length === document.querySelectorAll('#manageRoomsTbody .chk-room').length;
+    updateBatchBar();
+}
+
+function toggleSelectAll(checked) {
+    document.querySelectorAll('#manageRoomsTbody .chk-room').forEach(cb => cb.checked = checked);
+    updateBatchBar();
+}
+
+function updateBatchBar() {
+    const ids = getCheckedRoomIds();
+    const bar = document.getElementById('batchBar');
+    const cnt = document.getElementById('batchCount');
+    if (ids.length > 0) {
+        bar.classList.add('show');
+        cnt.textContent = `已选择 ${ids.length} 个房间`;
+    } else {
+        bar.classList.remove('show');
+        document.getElementById('batchStatus').value = '';
+        document.getElementById('batchPrice').value = '';
+        document.getElementById('batchArea').value = '';
+    }
+}
+
+function clearBatchSelect() {
+    document.querySelectorAll('#manageRoomsTbody .chk-room').forEach(cb => cb.checked = false);
+    document.getElementById('selectAll').checked = false;
+    updateBatchBar();
+}
+
+async function batchApplyStatus() {
+    const status = document.getElementById('batchStatus').value;
+    if (!status) return;
+    if (!confirm(`确定将所选房间状态设为「${status}」？`)) {
+        document.getElementById('batchStatus').value = '';
+        return;
+    }
+    const ids = getCheckedRoomIds();
+    const res = await fetch(`${API}/api/rooms/batch-update`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ room_ids: ids, status: status })
+    });
+    const data = await res.json();
+    showMsg(data.msg, data.code === 200 ? 'ok' : 'err');
+    document.getElementById('batchStatus').value = '';
+    if (data.code === 200) loadManageRooms();
+}
+
+async function batchApply() {
+    const ids = getCheckedRoomIds();
+    if (ids.length === 0) { showMsg('请先勾选房间', 'err'); return; }
+
+    const price = document.getElementById('batchPrice').value.trim();
+    const area = document.getElementById('batchArea').value.trim();
+    const body = { room_ids: ids };
+    let desc = [];
+
+    if (price !== '') { body.price = parseFloat(price); desc.push(`价格 ¥${price}`); }
+    if (area !== '') { body.area = parseFloat(area); desc.push(`面积 ${area}㎡`); }
+    if (desc.length === 0) { showMsg('请填写价格或面积', 'err'); return; }
+
+    if (!confirm(`确定将所选 ${ids.length} 个房间的 ${desc.join('、')} 批量更新？`)) return;
+
+    const res = await fetch(`${API}/api/rooms/batch-update`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    showMsg(data.msg, data.code === 200 ? 'ok' : 'err');
+    if (data.code === 200) { document.getElementById('batchPrice').value = ''; document.getElementById('batchArea').value = ''; loadManageRooms(); }
+}
+
+async function loadRevenue() {
+    const days = document.getElementById('revenueDays').value;
+    const res = await fetch(`${API}/api/stats/revenue?days=${days}`, { credentials: 'include' });
+    const data = await res.json();
+    let html = '', total = 0;
+    (data.data||[]).forEach(d => {
+        html += `<tr><td>${d.day}</td><td>${d.orders}</td><td>¥${d.revenue}</td></tr>`;
+        total += parseFloat(d.revenue) || 0;
+    });
+    document.getElementById('revenueTbody').innerHTML = html || '<tr><td colspan="3">暂无数据</td></tr>';
+    document.getElementById('revenueTotal').textContent = '¥' + total.toFixed(2);
+}
+
+async function loadManagerGuests() {
+    const res = await fetch(`${API}/api/checkins?status=入住中`, { credentials: 'include' });
+    const data = await res.json();
+    let html = '';
+    (data.data||[]).forEach(g => {
+        html += `<tr>
+            <td>#${g.checkin_id}</td><td>${g.customer_name}</td><td>${g.phone}</td>
+            <td>${g.id_card||'-'}</td><td>${g.room_id}</td><td>${g.type_name}</td>
+            <td>${fmtTime(g.checkin_time)}</td>
+            <td>${fmtTime(g.expected_checkout)}</td>
+            <td>¥${g.price||'-'}</td>
+        </tr>`;
+    });
+    document.getElementById('mgrGuestsTbody').innerHTML = html || '<tr><td colspan="9">暂无在住客人</td></tr>';
+}
+
+// ---- 客户历史 ----
+let histCustData = [];
+
+async function loadHistCustomers() {
+    const kw = document.getElementById('histSearch').value.trim();
+    const url = kw ? `${API}/api/customers?keyword=${encodeURIComponent(kw)}` : `${API}/api/customers`;
+    const res = await fetch(url, { credentials: 'include' });
+    const data = await res.json();
+    histCustData = data.data || [];
+    let html = '';
+    histCustData.forEach(c => {
+        const badge = c.member_level === '会员'
+            ? '<span class="badge badge-front">会员</span>'
+            : '<span class="badge" style="background:#e5e7eb;color:#6b7280;">普通</span>';
+        html += `<tr>
+            <td>#${c.customer_id}</td><td>${c.name}</td><td>${c.phone}</td>
+            <td>${badge}</td><td>${c.points}</td>
+            <td><button class="btn-sm btn-primary" onclick="viewHistory(${c.customer_id},'${c.name}')">查看历史</button></td>
+        </tr>`;
+    });
+    document.getElementById('histCustTbody').innerHTML = html || '<tr><td colspan="6">暂无客户数据</td></tr>';
+}
+
+async function viewHistory(cid, name) {
+    const res = await fetch(`${API}/api/customers/${cid}/history`, { credentials: 'include' });
+    const data = await res.json();
+    if (data.code !== 200) { showMsg(data.msg, 'err'); return; }
+    const d = data.data;
+    const c = d.customer;
+    let html = `<div style="margin-bottom:16px;padding:12px;background:#f9fafb;border-radius:8px;">
+        <strong>${c.name}</strong> | ${c.gender} | ${c.phone} | ${c.member_level} | 积分: ${c.points}</div>`;
+
+    html += '<h4 style="margin:12px 0 6px;color:#1f2937;">入住记录</h4>';
+    if (d.checkins.length === 0) html += '<p style="color:#9ca3af;">暂无</p>';
+    else {
+        html += '<table><thead><tr><th>编号</th><th>房间</th><th>房型</th><th>房价</th><th>入住</th><th>预计离店</th><th>状态</th></tr></thead><tbody>';
+        d.checkins.forEach(ci => {
+            html += `<tr><td>#${ci.checkin_id}</td><td>${ci.room_id}</td><td>${ci.type_name}</td><td>¥${ci.price}</td>
+                <td>${fmtTime(ci.checkin_time)}</td><td>${fmtTime(ci.expected_checkout)}</td><td>${ci.status}</td></tr>`;
+        });
+        html += '</tbody></table>';
+    }
+
+    html += '<h4 style="margin:12px 0 6px;color:#1f2937;">预订记录</h4>';
+    if (d.bookings.length === 0) html += '<p style="color:#9ca3af;">暂无</p>';
+    else {
+        html += '<table><thead><tr><th>编号</th><th>房型</th><th>间数</th><th>预订时间</th><th>预计入住</th><th>预计离店</th><th>状态</th></tr></thead><tbody>';
+        d.bookings.forEach(b => {
+            html += `<tr><td>#${b.booking_id}</td><td>${b.type_name||'-'}</td><td>${b.room_count}</td>
+                <td>${fmtTime(b.booking_time)}</td><td>${fmtTime(b.expected_checkin)}</td><td>${fmtTime(b.expected_checkout)}</td><td>${b.status}</td></tr>`;
+        });
+        html += '</tbody></table>';
+    }
+
+    html += '<h4 style="margin:12px 0 6px;color:#1f2937;">消费记录</h4>';
+    if (d.consumptions.length === 0) html += '<p style="color:#9ca3af;">暂无</p>';
+    else {
+        html += '<table><thead><tr><th>编号</th><th>项目</th><th>金额</th><th>时间</th><th>备注</th></tr></thead><tbody>';
+        d.consumptions.forEach(con => {
+            html += `<tr><td>#${con.consumption_id}</td><td>${con.item_name}</td><td>¥${con.amount}</td>
+                <td>${fmtTime(con.create_time)}</td><td>${con.remark||'-'}</td></tr>`;
+        });
+        html += '</tbody></table>';
+    }
+
+    html += '<h4 style="margin:12px 0 6px;color:#1f2937;">积分流水</h4>';
+    if (d.points_records.length === 0) html += '<p style="color:#9ca3af;">暂无</p>';
+    else {
+        html += '<table><thead><tr><th>类型</th><th>变动</th><th>来源</th><th>金额</th><th>余额</th><th>时间</th></tr></thead><tbody>';
+        d.points_records.forEach(pr => {
+            const cls = pr.points_change > 0 ? 'color:#059669;' : 'color:#dc2626;';
+            html += `<tr><td>${pr.change_type}</td><td style="${cls}">${pr.points_change>0?'+':''}${pr.points_change}</td>
+                <td>${pr.source_type}</td><td>¥${pr.amount||0}</td><td>${pr.balance_after}</td>
+                <td>${fmtTime(pr.create_time)}</td></tr>`;
+        });
+        html += '</tbody></table>';
+    }
+
+    html += '<h4 style="margin:12px 0 6px;color:#1f2937;">增值服务</h4>';
+    if (d.services.length === 0) html += '<p style="color:#9ca3af;">暂无</p>';
+    else {
+        html += '<table><thead><tr><th>类型</th><th>编号</th><th>入住编号</th><th>人数</th><th>金额</th><th>时间</th></tr></thead><tbody>';
+        d.services.forEach(s => {
+            html += `<tr><td>${s.svc}</td><td>#${s.id}</td><td>#${s.checkin_id}</td>
+                <td>${s.qty}</td><td>¥${s.amount}</td><td>${fmtTime(s.create_time)}</td></tr>`;
+        });
+        html += '</tbody></table>';
+    }
+
+    document.getElementById('histDetailTitle').textContent = `客户详情 — ${c.name}`;
+    document.getElementById('histDetailContent').innerHTML = html;
+    document.getElementById('histDetailCard').classList.remove('hidden');
+}
+
+async function loadRoomTypeFilter() {
+    const res = await fetch(`${API}/api/room-types`, { credentials: 'include' });
+    const data = await res.json();
+    let opts = '<option value="">全部</option>';
+    (data.data||[]).forEach(rt => opts += `<option value="${rt.type_id}">${rt.type_name}</option>`);
+    document.getElementById('rsTypeId').innerHTML = opts;
+}
+
+async function searchRooms() {
+    const params = new URLSearchParams();
+    const add = (k, v) => { if (v) params.append(k, v); };
+    add('room_id', document.getElementById('rsRoomId').value.trim());
+    add('type_id', document.getElementById('rsTypeId').value);
+    add('status', document.getElementById('rsStatus').value);
+    add('date_from', document.getElementById('rsDateFrom').value);
+    add('date_to', document.getElementById('rsDateTo').value);
+    add('customer_name', document.getElementById('rsCustName').value.trim());
+
+    const res = await fetch(`${API}/api/rooms/search?${params.toString()}`, { credentials: 'include' });
+    const data = await res.json();
+    if (data.code !== 200) { showMsg(data.msg, 'err'); return; }
+    const recs = data.data.stay_records || [];
+    let html = '';
+    recs.forEach(r => {
+        html += `<tr>
+            <td>#${r.checkin_id}</td><td>${r.customer_name}</td><td>${r.phone}</td>
+            <td>${r.room_id}</td><td>${r.type_name}</td><td>¥${r.price}</td>
+            <td>${fmtTime(r.checkin_time)}</td><td>${fmtTime(r.expected_checkout)}</td>
+            <td>${fmtTime(r.checkout_time)}</td><td>${r.status}</td></tr>`;
+    });
+    document.getElementById('roomSearchTbody').innerHTML = html || '<tr><td colspan="10">无匹配记录</td></tr>';
+}
+
+async function loadServices() {
+    const svcType = document.getElementById('svcType').value;
+    const res = await fetch(`${API}/api/services/${svcType}`, { credentials: 'include' });
+    const data = await res.json();
+    let html = '';
+    const records = data.data || [];
+    const fields = svcType === 'dining' ?
+        ['dining_id','customer_name','checkin_id','diner_num','total_cost','consume_time'] :
+        ['pool_id' in (records[0]||{}) ? 'pool_id':'gym_id','customer_name','checkin_id','use_num','cost','register_time'];
+
+    records.forEach(r => {
+        const id = r[fields[0]] || r.dining_id || r.pool_id || r.gym_id;
+        const time = svcType === 'dining' ? r.consume_time : r.register_time;
+        const cost = svcType === 'dining' ? r.total_cost : r.cost;
+        const num = svcType === 'dining' ? r.diner_num : r.use_num;
+        html += `<tr><td>#${id}</td><td>${r.customer_name}</td><td>#${r.checkin_id}</td><td>${num}</td><td>¥${cost}</td><td>${fmtTime(time)}</td></tr>`;
+    });
+    document.getElementById('servicesTbody').innerHTML = html || '<tr><td colspan="6">暂无记录</td></tr>';
+}
+
+let isBatchMode = false;
+
+function toggleBatchMode() {
+    isBatchMode = !isBatchMode;
+    document.getElementById('arSingleGroup').classList.toggle('hidden', isBatchMode);
+    document.getElementById('arBatchGroup').classList.toggle('hidden', !isBatchMode);
+    document.getElementById('batchToggle').textContent = isBatchMode ? '单个新增' : '批量新增';
+    if (isBatchMode) {
+        document.getElementById('arSingleGroup').querySelector('input').value = '';
+    } else {
+        document.getElementById('arRoomIds').value = '';
+    }
+}
+
+async function showAddRoomModal() {
+    const res = await fetch(`${API}/api/room-types`, { credentials: 'include' });
+    const data = await res.json();
+    let opts = '';
+    (data.data||[]).forEach(rt => opts += `<option value="${rt.type_id}">${rt.type_name}</option>`);
+    document.getElementById('arTypeId').innerHTML = opts;
+    document.getElementById('arRoomId').value = '';
+    document.getElementById('arRoomIds').value = '';
+    document.getElementById('arPrice').value = '';
+    document.getElementById('arArea').value = '';
+    document.getElementById('arRemark').value = '';
+    if (isBatchMode) toggleBatchMode();
+    document.getElementById('addRoomModal').style.display = 'flex';
+}
+
+function hideAddRoomModal() {
+    document.getElementById('addRoomModal').style.display = 'none';
+}
+
+async function addRoom() {
+    const typeId = document.getElementById('arTypeId').value;
+    const price = document.getElementById('arPrice').value.trim();
+    const area = document.getElementById('arArea').value.trim();
+    const remark = document.getElementById('arRemark').value.trim();
+
+    if (!typeId || !price) {
+        showMsg('请选择房型并填写价格', 'err');
+        return;
+    }
+
+    let roomIds;
+    if (isBatchMode) {
+        const raw = document.getElementById('arRoomIds').value.trim();
+        if (!raw) { showMsg('请输入房间号', 'err'); return; }
+        roomIds = raw.split(/[,\s]+/).filter(Boolean);
+    } else {
+        const rid = document.getElementById('arRoomId').value.trim();
+        if (!rid) { showMsg('请输入房间号', 'err'); return; }
+        roomIds = [rid];
+    }
+
+    const res = await fetch(`${API}/api/rooms`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ room_ids: roomIds, type_id: parseInt(typeId), price: parseFloat(price), area: area ? parseFloat(area) : null, remark: remark })
+    });
+    const data = await res.json();
+    if (data.code === 200) {
+        if (data.data && data.data.errors.length > 0) {
+            alert(data.msg + '\n失败：' + data.data.errors.join('、'));
+        } else {
+            showMsg(data.msg, 'ok');
+        }
+        hideAddRoomModal();
+        loadManageRooms();
+    } else {
+        showMsg(data.msg, 'err');
+    }
+}
+
+async function deleteRoom(roomId) {
+    if (!confirm(`确定删除房间「${roomId}」吗？此操作不可撤销。`)) return;
+    const res = await fetch(`${API}/api/rooms/${roomId}`, {
+        method: 'DELETE', credentials: 'include'
+    });
+    const data = await res.json();
+    showMsg(data.msg, data.code === 200 ? 'ok' : 'err');
+    if (data.code === 200) loadManageRooms();
+}
+
+function exportRooms() {
+    downloadFile(`${API}/api/export/rooms`, '客房信息表.xlsx');
+}
+
+function downloadFile(url, filename) {
+    fetch(url, { credentials: 'include' }).then(res => res.blob()).then(blob => {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    });
+}
+
+function printManageRooms() {
+    const table = document.querySelector('#tab-rooms table');
+    const headers = [];
+    table.querySelectorAll('thead th').forEach(th => {
+        const txt = th.textContent.trim();
+        if (txt && txt !== '') headers.push(txt);
+    });
+    const rows = [];
+    table.querySelectorAll('tbody tr').forEach(tr => {
+        const cells = [];
+        tr.querySelectorAll('td').forEach((td, i) => {
+            const headerCount = headers.length;
+            if (i >= headerCount) return;
+            const select = td.querySelector('select');
+            const span = td.querySelector('.editable');
+            if (select) cells.push(select.value);
+            else if (span) cells.push(span.textContent.trim());
+            else if (td.querySelector('input[type=checkbox]')) cells.push('');
+            else cells.push(td.textContent.trim());
+        });
+        if (cells.length > 0) rows.push(cells);
+    });
+    const printHeaders = headers.slice(1);
+    printTable('客房信息表', printHeaders, rows);
+}
+
+// ---- 通用打印工具 ----
+function printTable(title, headers, dataRows) {
+    var w = window.open('', '_blank');
+    w.document.write('<html><head><meta charset="utf-8"><title>' + title + '</title>');
+    w.document.write('<style>');
+    w.document.write('body{font-family:"Microsoft YaHei",sans-serif;padding:30px;}');
+    w.document.write('h2{text-align:center;margin-bottom:5px;}');
+    w.document.write('.time{text-align:center;color:#666;margin-bottom:20px;font-size:13px;}');
+    w.document.write('table{width:100%;border-collapse:collapse;font-size:12px;}');
+    w.document.write('th{background:#f0f4f8;border:1px solid #333;padding:6px 8px;text-align:left;}');
+    w.document.write('td{border:1px solid #333;padding:5px 8px;}');
+    w.document.write('</style></head><body>');
+    w.document.write('<h2>' + title + '</h2>');
+    w.document.write('<p class="time">打印时间：' + new Date().toLocaleString() + '</p>');
+    w.document.write('<table><thead><tr>');
+    for (var i = 0; i < headers.length; i++) {
+        w.document.write('<th>' + headers[i] + '</th>');
+    }
+    w.document.write('</tr></thead><tbody>');
+    for (var r = 0; r < dataRows.length; r++) {
+        w.document.write('<tr>');
+        var row = dataRows[r];
+        for (var c = 0; c < row.length; c++) {
+            w.document.write('<td>' + (row[c] || '') + '</td>');
+        }
+        w.document.write('</tr>');
+    }
+    w.document.write('</tbody></table></body></html>');
+    w.document.close();
+    setTimeout(function() { w.print(); }, 500);
+}
+
+async function loadRoomServices() {
+    const res = await fetch(`${API}/api/room-services`, { credentials: 'include' });
+    const data = await res.json();
+    let html = '';
+    (data.data||[]).forEach(rs => {
+        html += `<tr>
+            <td>#${rs.service_id}</td><td>${rs.room_id}</td><td>${rs.service_type}</td>
+            <td>${rs.description||'-'}</td><td>${rs.operator_name||'-'}</td>
+            <td>${fmtTime(rs.service_time)}</td>
+        </tr>`;
+    });
+    document.getElementById('roomServiceTbody').innerHTML = html || '<tr><td colspan="6">暂无记录</td></tr>';
+}
+
+async function addRoomService() {
+    const roomId = document.getElementById('rsRoomId2').value.trim();
+    const serviceType = document.getElementById('rsServiceType').value;
+    const description = document.getElementById('rsDesc').value.trim();
+    if (!roomId) { showMsg('请输入房间号', 'err'); return; }
+    const res = await fetch(`${API}/api/room-services`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ room_id: roomId, service_type: serviceType, description: description })
+    });
+    const data = await res.json();
+    showMsg(data.msg, data.code === 200 ? 'ok' : 'err');
+    if (data.code === 200) {
+        document.getElementById('rsRoomId2').value = '';
+        document.getElementById('rsDesc').value = '';
+        loadRoomServices();
+    }
+}
+
+async function logout() {
+    await fetch(`${API}/api/logout`, { method: 'POST', credentials: 'include' });
+    location.href = 'index.html';
+}
+
+init();
+</script>
+<!-- 新增客房弹窗 -->
+<div class="modal-overlay" id="addRoomModal">
+    <div class="modal" style="width:480px;">
+        <h3>新增客房
+            <a href="javascript:" onclick="toggleBatchMode()" style="float:right;font-size:13px;font-weight:normal;color:#1a5276;" id="batchToggle">批量新增</a>
+        </h3>
+        <div id="arSingleGroup"><div class="form-group"><label>房间号 *</label><input type="text" id="arRoomId" placeholder="如：601"></div></div>
+        <div id="arBatchGroup" class="hidden">
+            <div class="form-group"><label>房间号 *</label><textarea id="arRoomIds" rows="3" placeholder="多个房间号用逗号、空格或换行分隔&#10;如：601, 602, 603, 604, 605" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px;font-size:14px;resize:vertical;font-family:inherit;"></textarea></div>
+        </div>
+        <div class="form-group"><label>房型 *</label><select id="arTypeId"></select></div>
+        <div class="form-group"><label>价格(元) *</label><input type="number" id="arPrice" placeholder="如：688" step="0.01"></div>
+        <div class="form-group"><label>面积(㎡)</label><input type="number" id="arArea" placeholder="如：45" step="0.01"></div>
+        <div class="form-group"><label>备注</label><input type="text" id="arRemark" placeholder="如：新装修"></div>
+        <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end;">
+            <button class="btn-sm" style="background:#6b7280;" onclick="hideAddRoomModal()">取消</button>
+            <button class="btn-sm btn-success" onclick="addRoom()">确认新增</button>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

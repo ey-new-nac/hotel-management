@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>客房预订 - 客户中心</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Microsoft YaHei', sans-serif; background: #f0f4f8; min-height: 100vh; }
+.header {
+    background: linear-gradient(135deg, #0f3460, #1a5276); color: #fff;
+    padding: 15px 30px; display: flex; justify-content: space-between; align-items: center;
+}
+.header h2 { font-size: 20px; }
+.header .user-info { display: flex; align-items: center; gap: 15px; }
+.header .user-info span { font-size: 14px; opacity: 0.9; }
+.btn-sm {
+    padding: 7px 16px; border: none; border-radius: 6px; cursor: pointer;
+    font-size: 13px; color: #fff; transition: all 0.2s;
+}
+.btn-logout { background: rgba(255,255,255,0.2); }
+.btn-logout:hover { background: rgba(255,255,255,0.3); }
+.btn-primary { background: #0f3460; }
+.btn-primary:hover { background: #1a5276; }
+.btn-success { background: #059669; }
+.btn-success:hover { background: #047857; }
+.btn-danger { background: #dc2626; }
+.btn-danger:hover { background: #b91c1c; }
+
+.main { max-width: 1200px; margin: 0 auto; padding: 25px; }
+.tabs-panel { display: flex; gap: 0; margin-bottom: 25px; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.tab-item { flex: 1; text-align: center; padding: 14px; cursor: pointer; font-size: 14px; font-weight: 500; color: #6b7280; border-bottom: 3px solid transparent; transition: all 0.2s; }
+.tab-item.active { color: #0f3460; border-bottom-color: #0f3460; }
+.tab-item:hover { background: #f9fafb; }
+
+.card { background: #fff; border-radius: 10px; padding: 25px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.card h3 { color: #1f2937; margin-bottom: 18px; font-size: 17px; padding-bottom: 12px; border-bottom: 2px solid #f0f4f8; }
+
+.room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+.room-card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; text-align: center; transition: all 0.2s; }
+.room-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-2px); }
+.room-card .room-id { font-size: 20px; font-weight: bold; color: #0f3460; }
+.room-card .type-name { font-size: 13px; color: #6b7280; margin: 5px 0; }
+.room-card .price { font-size: 18px; color: #dc2626; font-weight: bold; }
+.room-card .status-free { color: #059669; font-size: 13px; }
+.room-card .status-other { color: #d97706; font-size: 13px; }
+.room-card .btn-book { margin-top: 8px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { background: #f9fafb; padding: 12px 10px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; }
+td { padding: 10px; border-bottom: 1px solid #f0f4f8; color: #4b5563; }
+tr:hover td { background: #f9fafb; }
+
+.form-row { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
+.form-group { flex: 1; min-width: 180px; }
+.form-group label { display: block; margin-bottom: 5px; font-size: 13px; color: #374151; font-weight: 500; }
+.form-group input, .form-group select { width: 100%; padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; outline: none; }
+.form-group input:focus, .form-group select:focus { border-color: #0f3460; }
+
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+.modal { background: #fff; border-radius: 12px; padding: 30px; width: 450px; max-height: 80vh; overflow-y: auto; }
+.modal h3 { margin-bottom: 20px; color: #1f2937; }
+
+.msg { padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 13px; text-align: center; }
+.msg-ok { background: #d1fae5; color: #065f46; }
+.msg-err { background: #fee2e2; color: #991b1b; }
+
+.hidden { display: none; }
+
+.type-card { border: 2px solid #e5e7eb; border-radius: 10px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.2s; }
+.type-card:hover { border-color: #0f3460; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.type-card.selected { border-color: #0f3460; background: #f0f7ff; }
+.type-card h4 { color: #1f2937; font-size: 16px; }
+.type-card .price { color: #dc2626; font-size: 20px; font-weight: bold; margin: 8px 0; }
+.type-card .avail { color: #059669; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h2>客房预订中心</h2>
+    <div class="user-info">
+        <span id="userGreeting">欢迎，</span>
+        <span id="userBadge" style="font-size:13px;margin-right:8px;"></span>
+        <button class="btn-sm btn-logout" onclick="logout()">退出登录</button>
+    </div>
+</div>
+
+<div class="main">
+    <div id="msgArea"></div>
+
+    <div class="tabs-panel">
+        <div class="tab-item active" onclick="switchTab(this, 'tab-booking')">预订房间</div>
+        <div class="tab-item" onclick="switchTab(this, 'tab-rooms')">查看客房</div>
+        <div class="tab-item" onclick="switchTab(this, 'tab-mybookings')">我的预订</div>
+        <div class="tab-item" onclick="switchTab(this, 'tab-mystay')">当前入住</div>
+    </div>
+
+    <!-- 预订房间 -->
+    <div id="tab-booking" class="tab-content">
+        <div class="card">
+            <h3>选择房型</h3>
+            <div id="typeList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px;"></div>
+        </div>
+        <div class="card hidden" id="bookingFormCard">
+            <h3>填写预订信息</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>预计入住时间</label>
+                    <input type="datetime-local" id="bookCheckin">
+                </div>
+                <div class="form-group">
+                    <label>预计离店时间</label>
+                    <input type="datetime-local" id="bookCheckout">
+                </div>
+                <div class="form-group">
+                    <label>房间数量</label>
+                    <input type="number" id="bookCount" value="1" min="1">
+                </div>
+            </div>
+            <button class="btn-sm btn-success" onclick="submitBooking()" style="padding:10px 30px;font-size:15px;">确认预订</button>
+        </div>
+    </div>
+
+    <!-- 查看客房 -->
+    <div id="tab-rooms" class="tab-content hidden">
+        <div class="card">
+            <h3>全部客房状态</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>房型筛选</label>
+                    <select id="roomFilterType" onchange="loadRooms()">
+                        <option value="">全部</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>状态筛选</label>
+                    <select id="roomFilterStatus" onchange="loadRooms()">
+                        <option value="">全部</option>
+                        <option value="空闲">空闲</option>
+                        <option value="已预订">已预订</option>
+                        <option value="已入住">已入住</option>
+                        <option value="清洁中">清洁中</option>
+                        <option value="维修中">维修中</option>
+                    </select>
+                </div>
+            </div>
+            <div class="room-grid" id="roomGrid"></div>
+        </div>
+    </div>
+
+    <!-- 我的预订 -->
+    <div id="tab-mybookings" class="tab-content hidden">
+        <div class="card">
+            <h3>我的预订记录</h3>
+            <table>
+                <thead><tr>
+                    <th>预订编号</th><th>房型</th><th>间数</th><th>预计入住</th><th>预计离店</th><th>状态</th><th>操作</th>
+                </tr></thead>
+                <tbody id="myBookingsTbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 当前入住 -->
+    <div id="tab-mystay" class="tab-content hidden">
+        <div class="card">
+            <h3>当前入住信息</h3>
+            <div id="myStayInfo"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = 'http://localhost:5000';
+let selectedTypeId = null;
+let customerInfo = null;
+
+function showMsg(text, type) {
+    const el = document.getElementById('msgArea');
+    el.innerHTML = `<div class="msg msg-${type==='ok'?'ok':'err'}">${text}</div>`;
+    setTimeout(() => el.innerHTML = '', 3000);
+}
+
+function fmtTime(str) {
+    if (!str) return '-';
+    const m = str.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+    if (m) return `${m[1]}年${parseInt(m[2])}月${parseInt(m[3])}日 ${m[4]}:${m[5]}`;
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    return str;
+}
+
+async function checkLogin() {
+    try {
+        const res = await fetch(`${API}/api/session`, { credentials: 'include' });
+        const data = await res.json();
+        if (data.code !== 200 || data.data.role !== 'customer') {
+            location.href = 'index.html'; return;
+        }
+        customerInfo = data.data;
+        document.getElementById('userGreeting').textContent = `欢迎，${data.data.username}`;
+        loadMemberInfo();
+        loadRoomTypes();
+        loadRooms();
+        loadMyBookings();
+        loadMyStay();
+    } catch (e) { location.href = 'index.html'; }
+}
+
+async function loadMemberInfo() {
+    try {
+        const res = await fetch(`${API}/api/customer/points`, { credentials: 'include' });
+        const data = await res.json();
+        if (data.code === 200) {
+            const d = data.data;
+            const badge = document.getElementById('userBadge');
+            if (d.member_level === '会员') {
+                badge.innerHTML = `<span style="background:#f59e0b;color:#fff;padding:3px 10px;border-radius:10px;">✦ 会员</span> <span style="color:#059669;font-weight:bold;">${d.points}积分</span>`;
+            } else {
+                badge.innerHTML = `<span style="color:#6b7280;">普通用户</span> <span style="color:#059669;">${d.points}积分</span>`;
+            }
+        } else {
+            document.getElementById('userBadge').innerHTML = '<span style="color:#dc2626;">加载失败</span>';
+        }
+    } catch(e) {
+        document.getElementById('userBadge').innerHTML = '<span style="color:#dc2626;">加载失败</span>';
+    }
+}
+
+function switchTab(elm, tabId) {
+    document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+    elm.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+    document.getElementById(tabId).classList.remove('hidden');
+}
+
+async function loadRoomTypes() {
+    const res = await fetch(`${API}/api/room-types`, { credentials: 'include' });
+    const data = await res.json();
+    if (data.code !== 200) return;
+    let html = '';
+    data.data.forEach(rt => {
+        html += `<div class="type-card ${selectedTypeId===rt.type_id?'selected':''}" onclick="selectType(${rt.type_id}, this)">
+            <h4>${rt.type_name}</h4><div class="price">¥${rt.default_price}</div>
+            <div class="avail">剩余 ${rt.surplus_room} / ${rt.total_room} 间</div>
+            <div style="font-size:12px;color:#8892b0;margin-top:4px;">${rt.description||''}</div>
+        </div>`;
+    });
+    document.getElementById('typeList').innerHTML = html;
+    // also populate filter
+    let opt = '<option value="">全部</option>';
+    data.data.forEach(rt => { opt += `<option value="${rt.type_id}">${rt.type_name}</option>`; });
+    document.getElementById('roomFilterType').innerHTML = opt;
+}
+
+function selectType(id, elm) {
+    selectedTypeId = id;
+    document.querySelectorAll('.type-card').forEach(c => c.classList.remove('selected'));
+    elm.classList.add('selected');
+    document.getElementById('bookingFormCard').classList.remove('hidden');
+}
+
+async function submitBooking() {
+    const expected_checkin = document.getElementById('bookCheckin').value;
+    const expected_checkout = document.getElementById('bookCheckout').value;
+    const room_count = parseInt(document.getElementById('bookCount').value) || 1;
+    if (!selectedTypeId || !expected_checkin || !expected_checkout) {
+        showMsg('请选择房型并填写入住/离店时间', 'err'); return;
+    }
+    if (new Date(expected_checkout) <= new Date(expected_checkin)) {
+        showMsg('离店时间必须晚于入住时间', 'err'); return;
+    }
+    try {
+        const res = await fetch(`${API}/api/bookings`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                customer_id: customerInfo.user_id, type_id: selectedTypeId,
+                expected_checkin, expected_checkout, room_count
+            })
+        });
+        const data = await res.json();
+        if (data.code === 200) {
+            showMsg('预订成功！', 'ok');
+            loadRoomTypes(); loadRooms(); loadMyBookings();
+            document.getElementById('bookingFormCard').classList.add('hidden');
+            selectedTypeId = null;
+        } else {
+            showMsg(data.msg, 'err');
+        }
+    } catch (err) {
+        showMsg('网络错误，请检查后端是否启动', 'err');
+    }
+}
+
+async function loadRooms() {
+    const typeId = document.getElementById('roomFilterType').value;
+    const status = document.getElementById('roomFilterStatus').value;
+    let url = `${API}/api/rooms?`;
+    if (typeId) url += `type_id=${typeId}&`;
+    if (status) url += `status=${status}&`;
+    const res = await fetch(url, { credentials: 'include' });
+    const data = await res.json();
+    if (data.code !== 200) return;
+    let html = '';
+    data.data.forEach(r => {
+        const cls = r.status === '空闲' ? 'status-free' : 'status-other';
+        html += `<div class="room-card">
+            <div class="room-id">${r.room_id}</div>
+            <div class="type-name">${r.type_name} | ${r.area||'N/A'}㎡</div>
+            <div class="price">¥${r.price}</div>
+            <div class="${cls}">${r.status}</div>
+        </div>`;
+    });
+    document.getElementById('roomGrid').innerHTML = html || '<p style="color:#6b7280;">暂无匹配房间</p>';
+}
+
+async function loadMyBookings() {
+    const res = await fetch(`${API}/api/bookings`, { credentials: 'include' });
+    const data = await res.json();
+    if (data.code !== 200) return;
+    const mine = data.data.filter(b => b.customer_id === customerInfo.user_id);
+    let html = '';
+    mine.forEach(b => {
+        html += `<tr>
+            <td>#${b.booking_id}</td><td>${b.type_name}</td><td>${b.room_count}</td>
+            <td>${fmtTime(b.expected_checkin)}</td>
+            <td>${fmtTime(b.expected_checkout)}</td>
+            <td>${b.status}</td>
+            <td>${b.status==='已预订' ? `<button class="btn-sm btn-danger" onclick="cancelMyBooking(${b.booking_id})">取消</button>` : '-'}</td>
+        </tr>`;
+    });
+    document.getElementById('myBookingsTbody').innerHTML = html || '<tr><td colspan="7" style="color:#6b7280;">暂无预订记录</td></tr>';
+}
+
+async function loadMyStay() {
+    const res = await fetch(`${API}/api/checkins?status=入住中`, { credentials: 'include' });
+    const data = await res.json();
+    if (data.code !== 200) return;
+    const mine = data.data.filter(c => c.customer_id === customerInfo.user_id);
+    if (mine.length === 0) {
+        document.getElementById('myStayInfo').innerHTML = '<p style="color:#6b7280;">当前没有在住的房间</p>';
+        return;
+    }
+    let html = '';
+    mine.forEach(stay => {
+        html += `<div class="card" style="background:#f0fdf4;">
+            <p><strong>房间号：</strong>${stay.room_id} (${stay.type_name})</p>
+            <p><strong>入住时间：</strong>${fmtTime(stay.checkin_time)}</p>
+            <p><strong>预计离店：</strong>${fmtTime(stay.expected_checkout)}</p>
+            <p><strong>状态：</strong>${stay.status}</p>
+        </div>`;
+    });
+    document.getElementById('myStayInfo').innerHTML = html;
+}
+
+async function cancelMyBooking(bid) {
+    if (!confirm('确定要取消该预订吗？')) return;
+    const res = await fetch(`${API}/api/bookings/${bid}/cancel`, { method: 'POST', credentials: 'include' });
+    const data = await res.json();
+    showMsg(data.msg, data.code===200?'ok':'err');
+    if (data.code === 200) { loadMyBookings(); loadRoomTypes(); loadRooms(); }
+}
+
+async function logout() {
+    await fetch(`${API}/api/logout`, { method: 'POST', credentials: 'include' });
+    location.href = 'index.html';
+}
+
+checkLogin();
+</script>
+</body>
+</html>

@@ -218,3 +218,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# 大文件 / 课程设计非源码文件
+*.mp4
+*.zip
+*.docx
